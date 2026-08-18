@@ -1,32 +1,29 @@
 import pytest
 import requests
 from unittest.mock import MagicMock, patch
-from model_adapter import infer, get_adapter
-from model_adapter.base import BaseAdapter
+from agent.adapter import infer, get_adapter, BaseAdapter, ModelResponse
 
 def test_interface_compliance():
-    """Verify that adapters implement BaseAdapter and return expected structure keys."""
+    """Verify that adapters implement BaseAdapter and return expected ModelResponse structure."""
     class DummyAdapter(BaseAdapter):
-        def infer(self, messages, tools=None, config=None):
-            return {
-                "text": "Hello world",
-                "tool_calls": [],
-                "usage": {"prompt_tokens": 5, "completion_tokens": 2, "total_tokens": 7},
-                "stop_reason": "stop"
-            }
+        def infer(self, messages, tools=None, config=None, **kwargs):
+            return ModelResponse(
+                content="Hello world",
+                tool_calls=[],
+                usage={"prompt_tokens": 5, "completion_tokens": 2, "total_tokens": 7},
+                stop_reason="stop"
+            )
 
     adapter = DummyAdapter()
     result = adapter.infer([{"role": "user", "content": "hi"}])
     
-    assert isinstance(result, dict)
-    assert "text" in result
-    assert "tool_calls" in result
-    assert "usage" in result
-    assert "stop_reason" in result
-    assert result["text"] == "Hello world"
-    assert result["usage"]["total_tokens"] == 7
+    assert isinstance(result, ModelResponse)
+    assert result.content == "Hello world"
+    assert result.tool_calls == []
+    assert result.usage["total_tokens"] == 7
+    assert result.stop_reason == "stop"
 
-@patch("model_adapter.providers.openrouter.requests.post")
+@patch("agent.adapter.requests.post")
 def test_openrouter_adapter_infer(mock_post):
     mock_response = MagicMock()
     mock_response.status_code = 200
@@ -62,16 +59,15 @@ def test_openrouter_adapter_infer(mock_post):
         config={"provider": "openrouter", "model_id": "openrouter/free"}
     )
 
-    assert result["text"] == "Test response"
-    assert len(result["tool_calls"]) == 1
-    assert result["tool_calls"][0]["name"] == "get_weather"
-    assert result["tool_calls"][0]["arguments"] == {"location": "Tokyo"}
-    assert result["usage"]["total_tokens"] == 25
-    assert result["stop_reason"] == "tool_calls"
+    assert result.content == "Test response"
+    assert len(result.tool_calls) == 1
+    assert result.tool_calls[0]["name"] == "get_weather"
+    assert result.tool_calls[0]["arguments"] == {"location": "Tokyo"}
+    assert result.usage["total_tokens"] == 25
+    assert result.stop_reason == "tool_calls"
 
-@patch("model_adapter.providers.openrouter.requests.post")
+@patch("agent.adapter.requests.post")
 def test_infer_retry_logic(mock_post):
-    # First two calls raise ConnectionError, third call succeeds
     mock_post.side_effect = [
         requests.exceptions.ConnectionError("Connection aborted"),
         requests.exceptions.Timeout("Read timed out"),
@@ -89,10 +85,10 @@ def test_infer_retry_logic(mock_post):
         config={"provider": "openrouter", "model_id": "openrouter/free"}
     )
 
-    assert result["text"] == "Success after retry"
+    assert result.content == "Success after retry"
     assert mock_post.call_count == 3
 
-@patch("model_adapter.providers.openrouter.requests.post")
+@patch("agent.adapter.requests.post")
 def test_infer_no_retry_on_client_error(mock_post):
     mock_response = MagicMock()
     mock_response.status_code = 400
@@ -105,10 +101,9 @@ def test_infer_no_retry_on_client_error(mock_post):
             config={"provider": "openrouter", "model_id": "openrouter/free"}
         )
 
-    # Ensure it did not retry (called only once)
     assert mock_post.call_count == 1
 
-@patch("model_adapter.providers.openrouter.requests.post")
+@patch("agent.adapter.requests.post")
 def test_infer_retry_on_rate_limit_429(mock_post):
     mock_429 = MagicMock()
     mock_429.status_code = 429
@@ -128,10 +123,10 @@ def test_infer_retry_on_rate_limit_429(mock_post):
         config={"provider": "openrouter", "model_id": "openrouter/free"}
     )
 
-    assert result["text"] == "Success after 429 retry"
+    assert result.content == "Success after 429 retry"
     assert mock_post.call_count == 2
 
-@patch("model_adapter.providers.openrouter.requests.post")
+@patch("agent.adapter.requests.post")
 def test_infer_retry_on_server_error_503(mock_post):
     mock_503 = MagicMock()
     mock_503.status_code = 503
@@ -147,7 +142,7 @@ def test_infer_retry_on_server_error_503(mock_post):
 
     assert mock_post.call_count == 3
 
-@patch("model_adapter.providers.openrouter.requests.post")
+@patch("agent.adapter.requests.post")
 def test_tool_call_json_string_arguments_parsing(mock_post):
     mock_response = MagicMock()
     mock_response.status_code = 200
@@ -184,15 +179,15 @@ def test_tool_call_json_string_arguments_parsing(mock_post):
         config={"provider": "openrouter", "model_id": "openrouter/free"}
     )
 
-    assert len(result["tool_calls"]) == 1
-    tc = result["tool_calls"][0]
+    assert len(result.tool_calls) == 1
+    tc = result.tool_calls[0]
     assert tc["id"] == "call_abc123"
     assert tc["name"] == "search_database"
     assert isinstance(tc["arguments"], dict)
     assert tc["arguments"]["query"] == "machine learning"
     assert tc["arguments"]["limit"] == 10
 
-@patch("model_adapter.providers.openrouter.requests.post")
+@patch("agent.adapter.requests.post")
 def test_infer_missing_usage_fields(mock_post):
     mock_response = MagicMock()
     mock_response.status_code = 200
@@ -203,7 +198,6 @@ def test_infer_missing_usage_fields(mock_post):
                 "finish_reason": "stop"
             }
         ]
-        # 'usage' key is completely missing
     }
     mock_post.return_value = mock_response
 
@@ -212,14 +206,14 @@ def test_infer_missing_usage_fields(mock_post):
         config={"provider": "openrouter", "model_id": "openrouter/free"}
     )
 
-    assert result["text"] == "Response without usage"
-    assert result["usage"] == {
+    assert result.content == "Response without usage"
+    assert result.usage == {
         "prompt_tokens": 0,
         "completion_tokens": 0,
         "total_tokens": 0
     }
 
-@patch("model_adapter.providers.openrouter.requests.post")
+@patch("agent.adapter.requests.post")
 def test_infer_alternative_usage_keys(mock_post):
     mock_response = MagicMock()
     mock_response.status_code = 200
@@ -242,14 +236,14 @@ def test_infer_alternative_usage_keys(mock_post):
         config={"provider": "openrouter", "model_id": "openrouter/free"}
     )
 
-    assert result["text"] == "Response with alt usage keys"
-    assert result["usage"] == {
+    assert result.content == "Response with alt usage keys"
+    assert result.usage == {
         "prompt_tokens": 42,
         "completion_tokens": 18,
         "total_tokens": 60
     }
 
-@patch("model_adapter.providers.openrouter.requests.post")
+@patch("agent.adapter.requests.post")
 def test_infer_custom_stop_reasons(mock_post):
     for finish_reason in ["length", "tool_calls", "content_filter"]:
         mock_response = MagicMock()
@@ -270,9 +264,9 @@ def test_infer_custom_stop_reasons(mock_post):
             config={"provider": "openrouter", "model_id": "openrouter/free"}
         )
 
-        assert result["stop_reason"] == finish_reason
+        assert result.stop_reason == finish_reason
 
-@patch("model_adapter.providers.openrouter.requests.post")
+@patch("agent.adapter.requests.post")
 def test_infer_model_tiers_routing(mock_post):
     mock_response = MagicMock()
     mock_response.status_code = 200
@@ -282,28 +276,25 @@ def test_infer_model_tiers_routing(mock_post):
     }
     mock_post.return_value = mock_response
 
-    # Test planner tier
     result_planner = infer(
         messages=[{"role": "user", "content": "Plan step"}],
         config={"provider": "openrouter", "model_id": "openrouter/planner-model"}
     )
-    assert result_planner["text"] == "Tier response"
+    assert result_planner.content == "Tier response"
     
-    # Verify model parameter sent in request payload
     called_payload = mock_post.call_args[1]["json"]
     assert called_payload["model"] == "planner-model"
 
-    # Test executor tier
     result_executor = infer(
         messages=[{"role": "user", "content": "Execute step"}],
         config={"provider": "openrouter", "model_id": "openrouter/executor-model"}
     )
-    assert result_executor["text"] == "Tier response"
+    assert result_executor.content == "Tier response"
 
     called_payload_exec = mock_post.call_args[1]["json"]
     assert called_payload_exec["model"] == "executor-model"
 
-@patch("model_adapter.providers.openrouter.requests.post")
+@patch("agent.adapter.requests.post")
 def test_infer_model_config_dict_tiers(mock_post):
     mock_response = MagicMock()
     mock_response.status_code = 200
@@ -313,7 +304,6 @@ def test_infer_model_config_dict_tiers(mock_post):
     }
     mock_post.return_value = mock_response
 
-    # Call with model config dictionary specifying planner and executor
     config = {
         "provider": "openrouter",
         "model": {
@@ -328,6 +318,6 @@ def test_infer_model_config_dict_tiers(mock_post):
         config=config
     )
 
-    assert result["text"] == "Dict tier response"
+    assert result.content == "Dict tier response"
     called_payload = mock_post.call_args[1]["json"]
     assert called_payload["model"] == "claude-3-5-sonnet"

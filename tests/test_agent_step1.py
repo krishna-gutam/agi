@@ -171,3 +171,58 @@ def test_invalid_tool_arguments_handling():
 
 
 
+
+from agent.policy import PolicyEngine, PolicyDecision
+
+def test_agent_loop_policy_denial():
+    tool_call_resp = ModelResponse(
+        content=None,
+        tool_calls=[{
+            "id": "call_denied",
+            "name": "fs.read",
+            "arguments": {"path": "../outside.txt"}
+        }]
+    )
+    final_resp = ModelResponse(content="Action was denied by policy.")
+    adapter = MockAdapter([tool_call_resp, final_resp])
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        policy_engine = PolicyEngine(workspace_dir=tmpdir)
+        loop = AgentLoop(adapter=adapter, policy_engine=policy_engine)
+        result = loop.run("Read outside file")
+        assert result == "Action was denied by policy."
+        
+        # Check second call messages for tool error feedback
+        second_call_messages = adapter.history[1]
+        tool_msg = [m for m in second_call_messages if m.role == "tool"]
+        assert len(tool_msg) == 1
+        tool_data = json.loads(tool_msg[0].content or "{}")
+        assert tool_data["exit_code"] != 0
+        assert "denied by policy" in tool_data["error"]
+
+def test_agent_loop_approval_required_fail_closed():
+    tool_call_resp = ModelResponse(
+        content=None,
+        tool_calls=[{
+            "id": "call_approve",
+            "name": "fs.write",
+            "arguments": {"path": "test.txt", "content": "data"}
+        }]
+    )
+    final_resp = ModelResponse(content="Handled approval requirement.")
+    adapter = MockAdapter([tool_call_resp, final_resp])
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # PolicyEngine with default rule fs.write -> APPROVE, but NO approval_callback provided
+        policy_engine = PolicyEngine(workspace_dir=tmpdir)
+        loop = AgentLoop(adapter=adapter, policy_engine=policy_engine)
+        result = loop.run("Write file without approval callback")
+        assert result == "Handled approval requirement."
+
+        second_call_messages = adapter.history[1]
+        tool_msg = [m for m in second_call_messages if m.role == "tool"]
+        assert len(tool_msg) == 1
+        tool_data = json.loads(tool_msg[0].content or "{}")
+        assert tool_data["exit_code"] != 0
+        assert "denied by policy" in tool_data["error"] or "requires approval" in tool_data["error"]
+
