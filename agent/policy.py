@@ -23,9 +23,9 @@ class PolicyEngine:
         self.workspace_dir = os.path.realpath(workspace_dir or os.getcwd())
         self.default_policy = default_policy
         self.custom_rules = custom_rules or {
-            "fs.read": PolicyDecision.ALLOW,
-            "fs.write": PolicyDecision.APPROVE,
-            "shell.exec": PolicyDecision.APPROVE,
+            "fs_read": PolicyDecision.ALLOW,
+            "fs_write": PolicyDecision.APPROVE,
+            "shell_exec": PolicyDecision.APPROVE,
         }
         self.approval_callback = approval_callback
 
@@ -41,7 +41,7 @@ class PolicyEngine:
     def evaluate(self, tool_name: str, arguments: Dict[str, Any]) -> PolicyDecision:
         """Evaluate a tool call and return its policy decision."""
         # 1. Workspace boundary check for file operations
-        if tool_name in ["fs.read", "fs.write"]:
+        if tool_name in ["fs_read", "fs_write"]:
             path = arguments.get("path")
             if path and not self.check_workspace_boundary(path):
                 return PolicyDecision.DENY

@@ -9,9 +9,9 @@ def test_context_assembly_basic():
         constraints=["No downtime"],
         current_plan="1. Setup HTML",
         working_state={"step": "init"},
-        trajectory=[{"step_index": 1, "action": "fs.write"}],
+        trajectory=[{"step_index": 1, "action": "fs_write"}],
         retrieved_memories=["Memory A"],
-        tool_schemas=[{"name": "fs.write"}]
+        tool_schemas=[{"name": "fs_write"}]
     )
 
     assert len(messages) >= 3

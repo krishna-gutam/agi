@@ -18,7 +18,7 @@ class MockSmokeModelAdapter(ModelAdapter):
         if self.call_count == 1:
             return ModelResponse(
                 content="I will read the file.",
-                tool_calls=[{"id": "call_1", "name": "fs.read", "arguments": {"path": "test.txt"}}]
+                tool_calls=[{"id": "call_1", "name": "fs_read", "arguments": {"path": "test.txt"}}]
             )
         else:
             return ModelResponse(content="Task completed successfully.", tool_calls=[])
@@ -70,7 +70,7 @@ def test_smoke_4_policy_denial():
         policy = PolicyEngine(workspace_dir=tmpdir)
         outside_path = os.path.abspath(os.path.join(tmpdir, "..", "secret.txt"))
         
-        decision = policy.evaluate("fs.read", {"path": outside_path})
+        decision = policy.evaluate("fs_read", {"path": outside_path})
         assert decision == PolicyDecision.DENY
 
 def test_smoke_5_state_persistence_and_checkpoints():

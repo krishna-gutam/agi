@@ -7,7 +7,7 @@ class SubagentConfig(BaseModel):
     parent_run_id: str
     depth: int = 1
     max_depth: int = 2
-    permissions: List[str] = Field(default_factory=list) # e.g., ["fs.read"]
+    permissions: List[str] = Field(default_factory=list) # e.g., ["fs_read"]
     budget_tokens: int = 1000
 
 class SubagentResult(BaseModel):

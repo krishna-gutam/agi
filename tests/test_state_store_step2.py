@@ -17,7 +17,7 @@ def test_state_store_append_and_checkpoint():
         
         # Append trajectory step
         step_data = {
-            "action": "shell.exec",
+            "action": "shell_exec",
             "output": "hello",
             "usage": {"total_tokens": 150},
             "cost_usd": 0.002
@@ -40,8 +40,8 @@ def test_state_store_append_and_checkpoint():
 def test_checkpoint_manager_listing_and_export():
     with tempfile.TemporaryDirectory() as tmpdir:
         store = StateStore(run_id="test_run_003", storage_dir=tmpdir)
-        store.append_trajectory({"action": "fs.read", "output": "content 1", "usage": {"total_tokens": 10}, "cost_usd": 0.0001})
-        store.append_trajectory({"action": "fs.write", "output": "content 2", "usage": {"total_tokens": 20}, "cost_usd": 0.0002})
+        store.append_trajectory({"action": "fs_read", "output": "content 1", "usage": {"total_tokens": 10}, "cost_usd": 0.0001})
+        store.append_trajectory({"action": "fs_write", "output": "content 2", "usage": {"total_tokens": 20}, "cost_usd": 0.0002})
 
         manager = CheckpointManager(storage_dir=tmpdir)
         checkpoints = manager.list_checkpoints(run_id="test_run_003")

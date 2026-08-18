@@ -51,7 +51,7 @@ def test_agent_loop_basic():
         content=None,
         tool_calls=[{
             "id": "call_1",
-            "name": "shell.exec",
+            "name": "shell_exec",
             "arguments": {"command": "echo 'loop test'"}
         }]
     )
@@ -78,7 +78,7 @@ def test_tool_error_handling():
         content=None,
         tool_calls=[{
             "id": "call_err",
-            "name": "fs.read",
+            "name": "fs_read",
             "arguments": {"path": "non_existent_file_12345.txt"}
         }]
     )
@@ -107,7 +107,7 @@ def test_max_iterations_limit():
                 content=None,
                 tool_calls=[{
                     "id": "call_inf",
-                    "name": "shell.exec",
+                    "name": "shell_exec",
                     "arguments": {"command": "echo 'infinite'"}
                 }]
             )
@@ -144,7 +144,7 @@ def test_invalid_tool_arguments_handling():
         content=None,
         tool_calls=[{
             "id": "call_bad_json",
-            "name": "shell.exec",
+            "name": "shell_exec",
             "arguments": "{invalid json}"
         }]
     )
@@ -179,7 +179,7 @@ def test_agent_loop_policy_denial():
         content=None,
         tool_calls=[{
             "id": "call_denied",
-            "name": "fs.read",
+            "name": "fs_read",
             "arguments": {"path": "../outside.txt"}
         }]
     )
@@ -205,7 +205,7 @@ def test_agent_loop_approval_required_fail_closed():
         content=None,
         tool_calls=[{
             "id": "call_approve",
-            "name": "fs.write",
+            "name": "fs_write",
             "arguments": {"path": "test.txt", "content": "data"}
         }]
     )

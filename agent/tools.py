@@ -82,23 +82,13 @@ def shell_exec(command: str, timeout: Optional[int] = 60, cwd: Optional[str] = N
 
 # Registry of available tools
 TOOL_REGISTRY = {
-    "fs.read": fs_read,
-    "fs.write": fs_write,
-    "shell.exec": shell_exec,
+    "fs_read": fs_read,
+    "fs_write": fs_write,
+    "shell_exec": shell_exec,
 }
 
-def check_workspace_boundary(path: str, workspace_dir: Optional[str] = None) -> bool:
-    """Verifies that the requested path is within the workspace directory using realpath."""
-    try:
-        ws = os.path.realpath(workspace_dir or os.getcwd())
-        real_path = os.path.realpath(path)
-        common = os.path.commonpath([ws, real_path])
-        return common == ws
-    except Exception:
-        return False
-
 def get_tool_schemas() -> List[Dict[str, Any]]:
-    """Generate OpenAI/JSON-compatible tool schemas with real JSON Schema parameters."""
+    """Generate JSON-compatible tool schemas with real JSON Schema parameters."""
     from pydantic import TypeAdapter
     schemas = []
     for name, func in TOOL_REGISTRY.items():

@@ -9,14 +9,14 @@ def test_policy_allow_and_deny():
 
         # fs.read inside workspace -> ALLOW
         in_path = os.path.join(tmpdir, "test.txt")
-        assert engine.evaluate("fs.read", {"path": in_path}) == PolicyDecision.ALLOW
+        assert engine.evaluate("fs_read", {"path": in_path}) == PolicyDecision.ALLOW
 
         # fs.write inside workspace -> APPROVE (by default rule)
-        assert engine.evaluate("fs.write", {"path": in_path, "content": "hello"}) == PolicyDecision.APPROVE
+        assert engine.evaluate("fs_write", {"path": in_path, "content": "hello"}) == PolicyDecision.APPROVE
 
         # fs.read outside workspace -> DENY
         out_path = os.path.abspath(os.path.join(tmpdir, "..", "outside.txt"))
-        assert engine.evaluate("fs.read", {"path": out_path}) == PolicyDecision.DENY
+        assert engine.evaluate("fs_read", {"path": out_path}) == PolicyDecision.DENY
 
 def test_policy_approval_callback():
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -28,13 +28,13 @@ def test_policy_approval_callback():
         in_path = os.path.join(tmpdir, "test.txt")
 
         # APPROVE rule with callback returning False -> DENY
-        decision_denied = engine.evaluate("fs.write", {"path": in_path, "content": "unapproved content"})
+        decision_denied = engine.evaluate("fs_write", {"path": in_path, "content": "unapproved content"})
         assert decision_denied == PolicyDecision.DENY
 
         # APPROVE rule with callback returning True -> APPROVE
-        decision_approved = engine.evaluate("fs.write", {"path": in_path, "content": "approved content"})
+        decision_approved = engine.evaluate("fs_write", {"path": in_path, "content": "approved content"})
         assert decision_approved == PolicyDecision.APPROVE
 
 def test_shell_exec_approval():
     engine = PolicyEngine()
-    assert engine.evaluate("shell.exec", {"command": "ls"}) == PolicyDecision.APPROVE
+    assert engine.evaluate("shell_exec", {"command": "ls"}) == PolicyDecision.APPROVE

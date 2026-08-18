@@ -10,7 +10,7 @@ def test_subagent_spawn_success():
         parent_run_id="parent_001",
         depth=1,
         max_depth=2,
-        permissions=["fs.read"],
+        permissions=["fs_read"],
         budget_tokens=500
     )
 
@@ -42,12 +42,12 @@ def test_parallel_read_only_execution():
         # Create test files
         f1 = f"{tmpdir}/file1.txt"
         f2 = f"{tmpdir}/file2.txt"
-        TOOL_REGISTRY["fs.write"](path=f1, content="content 1")
-        TOOL_REGISTRY["fs.write"](path=f2, content="content 2")
+        TOOL_REGISTRY["fs_write"](path=f1, content="content 1")
+        TOOL_REGISTRY["fs_write"](path=f2, content="content 2")
 
         calls = [
-            {"name": "fs.read", "arguments": {"path": f1}},
-            {"name": "fs.read", "arguments": {"path": f2}}
+            {"name": "fs_read", "arguments": {"path": f1}},
+            {"name": "fs_read", "arguments": {"path": f2}}
         ]
 
         results = manager.execute_parallel_read_only(calls, TOOL_REGISTRY)

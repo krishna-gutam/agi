@@ -143,109 +143,11 @@ class OpenRouterAdapter(BaseAdapter):
             raw_response=data
         )
 
-class OpenAIAdapter(BaseAdapter):
-    def __init__(self, model_id: Optional[str] = None, api_key: Optional[str] = None, **kwargs: Any):
-        super().__init__(model_id=model_id, api_key=api_key, **kwargs)
-        self.model_id = self.model_id or "gpt-4o"
-        self.api_key = self.api_key or os.getenv("OPENAI_API_KEY")
-        self.base_url = "https://api.openai.com/v1/chat/completions"
-
-    def infer(self, messages: List[Message], tools: Optional[List[Dict[str, Any]]] = None, config: Optional[Dict[str, Any]] = None, **kwargs: Any) -> ModelResponse:
-        config = dict(config or {})
-        config.update(self.kwargs)
-        config.update(kwargs)
-
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
-        serialized_messages = [m.model_dump() if isinstance(m, Message) else m for m in messages]
-        payload: Dict[str, Any] = {
-            "model": self.model_id,
-            "messages": serialized_messages,
-        }
-        if tools:
-            payload["tools"] = tools
-        response = requests.post(self.base_url, headers=headers, json=payload, timeout=60)
-        if response.status_code != 200:
-            raise RuntimeError(f"OpenAI API error ({response.status_code}): {response.text}")
-        data = response.json()
-        choice = data.get("choices", [{}])[0]
-        message = choice.get("message", {})
-        text = message.get("content") or ""
-        return ModelResponse(
-            content=text,
-            text=text,
-            tool_calls=message.get("tool_calls"),
-            usage=data.get("usage", {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}),
-            stop_reason=choice.get("finish_reason", "stop"),
-            raw_response=data
-        )
-
-class AnthropicAdapter(BaseAdapter):
-    def __init__(self, model_id: Optional[str] = None, api_key: Optional[str] = None, **kwargs: Any):
-        super().__init__(model_id=model_id, api_key=api_key, **kwargs)
-        self.model_id = self.model_id or "claude-3-5-sonnet-20241022"
-        self.api_key = self.api_key or os.getenv("ANTHROPIC_API_KEY")
-        self.base_url = "https://api.anthropic.com/v1/messages"
-
-    def infer(self, messages: List[Message], tools: Optional[List[Dict[str, Any]]] = None, config: Optional[Dict[str, Any]] = None, **kwargs: Any) -> ModelResponse:
-        config = dict(config or {})
-        config.update(self.kwargs)
-        config.update(kwargs)
-
-        headers = {
-            "x-api-key": self.api_key,
-            "anthropic-version": "2023-06-01",
-            "Content-Type": "application/json"
-        }
-        system_msg = ""
-        filtered_msgs = []
-        for m in messages:
-            m_dict = m.model_dump() if isinstance(m, Message) else m
-            if m_dict.get("role") == "system":
-                system_msg = m_dict.get("content", "")
-            else:
-                filtered_msgs.append(m_dict)
-
-        payload: Dict[str, Any] = {
-            "model": self.model_id,
-            "messages": filtered_msgs,
-            "max_tokens": config.get("max_tokens", 4096)
-        }
-        if system_msg:
-            payload["system"] = system_msg
-
-        response = requests.post(self.base_url, headers=headers, json=payload, timeout=60)
-        if response.status_code != 200:
-            raise RuntimeError(f"Anthropic API error ({response.status_code}): {response.text}")
-        data = response.json()
-        content = data.get("content", [{}])
-        text = content[0].get("text", "") if content else ""
-        usage = data.get("usage", {"input_tokens": 0, "output_tokens": 0})
-        usage_dict = {
-            "prompt_tokens": usage.get("input_tokens", 0),
-            "completion_tokens": usage.get("output_tokens", 0),
-            "total_tokens": usage.get("input_tokens", 0) + usage.get("output_tokens", 0)
-        }
-        return ModelResponse(
-            content=text,
-            text=text,
-            tool_calls=None,
-            usage=usage_dict,
-            stop_reason=data.get("stop_reason", "end_turn"),
-            raw_response=data
-        )
-
 def get_adapter(provider: str, model_id: Optional[str] = None, api_key: Optional[str] = None, **kwargs: Any) -> ModelAdapter:
     """Factory function to retrieve the appropriate model adapter implementation."""
     provider_lower = (provider or "openrouter").lower()
     if provider_lower == "openrouter":
         return OpenRouterAdapter(model_id=model_id, api_key=api_key, **kwargs)
-    elif provider_lower == "openai":
-        return OpenAIAdapter(model_id=model_id, api_key=api_key, **kwargs)
-    elif provider_lower == "anthropic":
-        return AnthropicAdapter(model_id=model_id, api_key=api_key, **kwargs)
     else:
         raise ValueError(f"Unsupported provider: {provider}")
 
