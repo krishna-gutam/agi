@@ -20,7 +20,7 @@ class PolicyEngine:
         custom_rules: Optional[Dict[str, PolicyDecision]] = None,
         approval_callback: Optional[Any] = None
     ):
-        self.workspace_dir = os.path.abspath(workspace_dir or os.getcwd())
+        self.workspace_dir = os.path.realpath(workspace_dir or os.getcwd())
         self.default_policy = default_policy
         self.custom_rules = custom_rules or {
             "fs.read": PolicyDecision.ALLOW,
@@ -32,8 +32,8 @@ class PolicyEngine:
     def check_workspace_boundary(self, path: str) -> bool:
         """Verifies that the requested path is within the workspace directory."""
         try:
-            abs_path = os.path.abspath(path)
-            common = os.path.commonpath([self.workspace_dir, abs_path])
+            real_path = os.path.realpath(path)
+            common = os.path.commonpath([self.workspace_dir, real_path])
             return common == self.workspace_dir
         except Exception:
             return False

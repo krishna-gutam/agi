@@ -28,13 +28,8 @@ class AgentLoop:
         messages.append(Message(role="user", content=prompt))
 
         # Format tool definitions for the adapter if needed
-        tool_definitions = [
-            {
-                "name": name,
-                "description": func.__doc__ or "",
-            }
-            for name, func in self.tools.items()
-        ]
+        from agent.tools import get_tool_schemas
+        tool_definitions = get_tool_schemas()
 
         iteration = 0
         while iteration < self.max_iterations:
@@ -112,3 +107,14 @@ class AgentLoop:
                 )
 
         return "Max iterations reached without final response."
+
+def main():
+    """CLI entry point for agent."""
+    import sys
+    from agent.adapter import get_adapter
+    prompt = sys.argv[1] if len(sys.argv) > 1 else "Hello, agent!"
+    adapter = get_adapter("openrouter")
+    loop = AgentLoop(adapter=adapter)
+    result = loop.run(prompt)
+    print(result)
+

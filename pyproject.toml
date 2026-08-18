@@ -23,7 +23,7 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["agent*"]
+include = ["agent*", "state_store*"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"
